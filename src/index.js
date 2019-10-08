@@ -3,6 +3,7 @@ import seek from 'dom-seek'
 
 import rangeToString from './range-to-string'
 
+const NODE_TEXT = 3
 const SHOW_TEXT = 4
 
 export function fromRange(root, range) {
@@ -41,27 +42,52 @@ export function toRange(root, selector = {}) {
   let range = document.createRange()
   let iter = createNodeIterator(root, SHOW_TEXT)
 
+  // Ensure the iterator points at the first text node, rather than the root.
+  iter.nextNode();
+  iter.previousNode();
+
   let start = selector.start || 0
   let end = selector.end || start
   let count = seek(iter, start)
   let remainder = start - count
 
-  if (iter.pointerBeforeReferenceNode) {
-    range.setStart(iter.referenceNode, remainder)
-  } else {
-    range.setStart(iter.nextNode(), remainder)
-    iter.previousNode()
+  // If the seek ended exactly at a node boundary, rewind to previous node.
+  if (!iter.pointerBeforeReferenceNode) {
+    iter.previousNode();
+    remainder += iter.referenceNode.length;
   }
+
+  // If the iterator points at something other than a text node, or the text
+  // node is not long enough, then the start position is out of range.
+  if (
+    iter.referenceNode.nodeType !== NODE_TEXT ||
+    iter.referenceNode.length < remainder
+  ) {
+    throw new Error('Start offset of position selector is out of range');
+  }
+
+  range.setStart(iter.referenceNode, remainder)
 
   let length = (end - start) + remainder
   count = seek(iter, length)
   remainder = length - count
 
-  if (iter.pointerBeforeReferenceNode) {
-    range.setEnd(iter.referenceNode, remainder)
-  } else {
-    range.setEnd(iter.nextNode(), remainder)
+  // If the seek ended exactly at a node boundary, rewind to previous node.
+  if (!iter.pointerBeforeReferenceNode) {
+    iter.previousNode();
+    remainder += iter.referenceNode.length;
   }
+
+  // If the iterator points at something other than a text node, or the text
+  // node is not long enough, then the end position is out of range.
+  if (
+    iter.referenceNode.nodeType !== NODE_TEXT ||
+    iter.referenceNode.length < remainder
+  ) {
+    throw new Error('End offset of position selector is out of range');
+  }
+
+  range.setEnd(iter.referenceNode, remainder)
 
   return range
 }
