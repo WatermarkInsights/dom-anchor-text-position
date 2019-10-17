@@ -60,7 +60,11 @@ export function toRange(root, selector = {}) {
   if (iter.pointerBeforeReferenceNode) {
     range.setEnd(iter.referenceNode, remainder)
   } else {
-    range.setEnd(iter.nextNode(), remainder)
+    if (iter.nextNode()) {
+      range.setEnd(iter.nextNode(), remainder)
+    } else {
+      range.setEnd(iter.referenceNode, remainder)
+    }
   }
 
   return range
